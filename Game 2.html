@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Пашка Болгарин - 16-bit Platformer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        
+        html, body {
+            background: #0d0221;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            width: 100%;
+            height: 100%;
+            position: fixed;
+        }
+        
+        #gameContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #1a0b2e;
+        }
+        
+        #gameCanvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #ffd700;
+            font-size: 16px;
+            text-shadow: 2px 2px 0 #000;
+            z-index: 100;
+            pointer-events: none;
+        }
+        
+        .heart {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background: #ff0040;
+            position: relative;
+            transform: rotate(-45deg);
+            margin-right: 3px;
+            box-shadow: 2px 2px 0 #000;
+        }
+        
+        .heart::before,
+        .heart::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            position: absolute;
+            background: #ff0040;
+            border-radius: 50%;
+        }
+        
+        .heart::before {
+            top: -10px;
+            left: 0;
+        }
+        
+        .heart::after {
+            left: 10px;
+            top: 0;
+        }
+        
+        .heart.lost {
+            background: #444;
+        }
+        
+        .heart.lost::before,
+        .heart.lost::after {
+            background: #444;
+        }
+        
+        #joystick {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 100px;
+            height: 100px;
+            background: rgba(255,255,255,0.1);
+            border: 3px solid rgba(255,215,0,0.5);
+            border-radius: 50%;
+            z-index: 100;
+            display: none;
+            touch-action: none;
+        }
+        
+        #joystickKnob {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,215,0,0.8);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(255,215,0,0.5);
+            pointer-events: none;
+        }
+        
+        #actionButtons {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            display: none;
+            gap: 10px;
+            flex-direction: column;
+        }
+        
+        .actionBtn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.3);
+            background: rgba(255,0,0,0.3);
+            color: white;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+            -webkit-touch-callout: none;
+        }
+        
+        .actionBtn:active {
+            background: rgba(255,0,0,0.6);
+            transform: scale(0.95);
+        }
+        
+        #jumpBtn {
+            background: rgba(0,150,255,0.3);
+            border-color: rgba(0,150,255,0.5);
+        }
+        
+        #jumpBtn:active {
+            background: rgba(0,150,255,0.6);
+        }
+        
+        #shootBtn {
+            background: rgba(255,215,0,0.3);
+            border-color: rgba(255,215,0,0.5);
+        }
+        
+        #shootBtn:active {
+            background: rgba(255,215,0,0.6);
+        }
+        
+        #startScreen, #dialogScreen, #level2Screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #1a0b2e 0%, #0d0221 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            color: #ffd700;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        #startScreen h1, #dialogScreen h1, #level2Screen h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            text-shadow: 4px 4px 0 #8b0000;
+            line-height: 1.2;
+        }
+        
+        #dialogScreen h1 {
+            color: #00ff00;
+            text-shadow: 4px 4px 0 #004400;
+        }
+        
+        #level2Screen h1 {
+            color: #ff69b4;
+            text-shadow: 4px 4px 0 #8b0046;
+        }
+        
+        .dialog-text {
+            font-size: 18px;
+            color: #fff;
+            margin: 20px;
+            padding: 20px;
+            background: rgba(0,0,0,0.5);
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            max-width: 90%;
+            line-height: 1.5;
+        }
+        
+        .yana-text {
+            font-size: 24px;
+            color: #ff69b4;
+            font-weight: bold;
+            animation: shake 0.5s infinite;
+            margin: 20px;
+            text-shadow: 2px 2px 0 #000;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        #startBtn, #nextLevelBtn, #dialogBtn {
+            padding: 15px 30px;
+            font-size: 20px;
+            background: #8b0000;
+            color: #ffd700;
+            border: 3px solid #ffd700;
+            cursor: pointer;
+            font-family: inherit;
+            text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(255,215,0,0.5);
+            margin-top: 20px;
+            -webkit-appearance: none;
+            border-radius: 0;
+        }
+        
+        #dialogBtn {
+            background: #006400;
+            border-color: #00ff00;
+        }
+        
+        #nextLevelBtn {
+            background: #8b0046;
+            border-color: #ff69b4;
+        }
+        
+        #startBtn:active, #nextLevelBtn:active, #dialogBtn:active {
+            transform: scale(0.95);
+        }
+        
+        .consultation-text {
+            font-size: 16px;
+            color: #00ff00;
+            text-align: center;
+            margin-top: 20px;
+            animation: blink 1s infinite;
+            line-height: 1.4;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        @media (max-width: 768px) {
+            #joystick, #actionButtons {
+                display: flex;
+            }
+            
+            #ui {
+                font-size: 14px;
+            }
+            
+            .heart {
+                width: 16px;
+                height: 16px;
+            }
+            
+            .heart::before,
+            .heart::after {
+                width: 16px;
+                height: 16px;
+            }
+            
+            .heart::before {
+                top: -8px;
+            }
+            
+            .heart::after {
+                left: 8px;
+            }
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui">
+            <div id="hearts"></div>
+            <div id="score">SCORE: 0</div>
+            <div id="level">LEVEL: 1</div>
+        </div>
+        
+        <div id="joystick">
+            <div id="joystickKnob"></div>
+        </div>
+        
+        <div id="actionButtons">
+            <div class="actionBtn" id="shootBtn">🔫</div>
+            <div class="actionBtn" id="attackBtn">⚔</div>
+            <div class="actionBtn" id="jumpBtn">↑</div>
+        </div>
+        
+        <div id="startScreen">
+            <h1>ПАШКА БОЛГАРИН</h1>
+            <p style="margin-bottom: 20px; font-size: 16px;">16-bit Edition</p>
+            <button id="startBtn">НАЧАТЬ ИГРУ</button>
+            <p style="margin-top: 15px; font-size: 12px; opacity: 0.7; line-height: 1.5;">
+                Управление:<br>
+                WASD / Стрелки + Пробел<br>
+                Атака: Z/K | Стрельба: X/L
+            </p>
+            <div id="consultationText" class="consultation-text hidden">
+                НУЖНА ФИНАНСОВАЯ КОНСУЛЬТАЦИЯ<br>
+                ЗВОНИ: +49 160 91427497
+            </div>
+        </div>
+        
+        <div id="dialogScreen" class="hidden">
+            <h1>ПОБЕДА!</h1>
+            <div class="dialog-text">
+                🎉 Поздравляю! 🎉<br><br>
+                Ты выиграл<br>
+                <span style="color: #00ff00; font-size: 24px;">20% СКИДКУ</span><br>
+                на страховку авто!
+            </div>
+            <button id="dialogBtn">ПРОДОЛЖИТЬ →</button>
+        </div>
+        
+        <div id="level2Screen" class="hidden">
+            <h1>УРОВЕНЬ 2</h1>
+            <div class="yana-text">ПАША!!! ИДИ РАБОТАЙ!!!</div>
+            <p style="font-size: 16px; color: #fff; margin: 10px;">Босс: Яна (Мега-Жена)</p>
+            <button id="nextLevelBtn">НАЧАТЬ БОЙ</button>
+        </div>
+    </div>
+
+    <script>
+        // iPhone detection
+        const isIPhone = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        
+        // Game Constants
+        const CANVAS_WIDTH = 800;
+        const CANVAS_HEIGHT = 450;
+        const GRAVITY = 0.6;
+        const JUMP_FORCE = -12;
+        const MOVE_SPEED = 4;
+        const TILE_SIZE = 32;
+        const ENEMY_SPEED = 0.8;
+        
+        // Audio Context
+        let audioCtx;
+        let masterGain;
+        
+        // Game State
+        let canvas, ctx;
+        let lastTime = 0;
+        let gameRunning = false;
+        let currentLevel = 1;
+        let score = 0;
+        let camera = { x: 0, y: 0 };
+        
+        // Input State
+        let keys = {};
+        let joystick = { active: false, dx: 0, dy: 0, originX: 0, originY: 0 };
+        let touchButtons = { jump: false, attack: false, shoot: false };
+        
+        // Entities
+        let player;
+        let enemies = [];
+        let platforms = [];
+        let particles = [];
+        let projectiles = [];
+        let boss = null;
+        let levelWidth = 0;
+        
+        // Parallax Backgrounds
+        let bgLayers = [];
+        
+        // Initialize
+        window.onload = function() {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d', { alpha: false });
+            
+            // Set canvas size with iPhone optimization
+            canvas.width = CANVAS_WIDTH;
+            canvas.height = CANVAS_HEIGHT;
+            
+            // Disable smoothing
+            ctx.imageSmoothingEnabled = false;
+            
+            // iPhone specific fixes
+            if (isIPhone) {
+                document.body.style.height = window.innerHeight + 'px';
+                window.addEventListener('resize', () => {
+                    document.body.style.height = window.innerHeight + 'px';
+                });
+            }
+            
+            setupControls();
+            setupJoystick();
+            
+            document.getElementById('startBtn').addEventListener('click', startGame);
+            document.getElementById('dialogBtn').addEventListener('click', showLevel2);
+            document.getElementById('nextLevelBtn').addEventListener('click', startLevel2);
+            
+            // Prevent iPhone scrolling
+            document.addEventListener('touchmove', function(e) {
+                if (e.target.closest('#joystick, #actionButtons')) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        };
+        
+        function initAudio() {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                masterGain = audioCtx.createGain();
+                masterGain.gain.value = 0.3;
+                masterGain.connect(audioCtx.destination);
+            } catch(e) {
+                console.log('Audio not supported');
+            }
+        }
+        
+        function playSound(type) {
+            if (!audioCtx) return;
+            
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                switch(type) {
+                    case 'jump':
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
+                        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                        break;
+                    case 'attack':
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+                        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                        break;
+                    case 'shoot':
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.15);
+                        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                        break;
+                    case 'hit':
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+                        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                        break;
+                    case 'yana':
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                        osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+                        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                        break;
+                }
+                
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } catch(e) {}
+        }
+        
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('consultationText').classList.add('hidden');
+            initAudio();
+            currentLevel = 1;
+            initLevel1();
+            gameRunning = true;
+            requestAnimationFrame(gameUpdate);
+        }
+        
+        function initLevel1() {
+            document.getElementById('level').textContent = 'LEVEL: 1';
+            bgLayers = [
+                { color: '#0d0221', speed: 0.1, offset: 0 },
+                { color: '#1a0b2e', speed: 0.3, offset: 0 },
+                { color: '#2d1b4e', speed: 0.5, offset: 0 }
+            ];
+            
+            player = {
+                x: 100, y: 200, width: 24, height: 40,
+                vx: 0, vy: 0, onGround: false, facing: 1,
+                health: 3, maxHealth: 3,
+                attacking: false, attackTimer: 0,
+                combo: 0, comboTimer: 0,
+                invulnerable: 0, shootCooldown: 0,
+                anim: { frame: 0, timer: 0, state: 'idle' }
+            };
+            
+            updateHearts();
+            generateLevel1();
+            spawnEnemiesLevel1();
+            createBossLevel1();
+        }
+        
+        function generateLevel1() {
+            platforms = [];
+            levelWidth = 2000;
+            
+            for (let x = 0; x < levelWidth; x += TILE_SIZE) {
+                platforms.push({ x: x, y: CANVAS_HEIGHT - TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE, type: 'ground' });
+            }
+            
+            const platformData = [
+                {x: 200, y: 350, w: 3}, {x: 400, y: 300, w: 2},
+                {x: 600, y: 250, w: 3}, {x: 800, y: 200, w: 2},
+                {x: 1000, y: 300, w: 4}, {x: 1300, y: 250, w: 2},
+                {x: 1500, y: 200, w: 3}, {x: 1700, y: 300, w: 4}
+            ];
+            
+            platformData.forEach(p => {
+                for (let i = 0; i < p.w; i++) {
+                    platforms.push({ x: p.x + i * TILE_SIZE, y: p.y, width: TILE_SIZE, height: TILE_SIZE, type: 'brick' });
+                }
+            });
+            
+            for (let i = 0; i < 5; i++) {
+                platforms.push({ x: 500 + i * 300, y: CANVAS_HEIGHT - TILE_SIZE - 16, width: 32, height: 16, type: 'spike' });
+            }
+        }
+        
+        function spawnEnemiesLevel1() {
+            enemies = [];
+            const positions = [{x: 400, y: 268}, {x: 800, y: 168}, {x: 1200, y: 268}, {x: 1600, y: 168}];
+            positions.forEach(pos => {
+                enemies.push({
+                    x: pos.x, y: pos.y, width: 24, height: 36,
+                    vx: ENEMY_SPEED, vy: 0, health: 2,
+                    patrolStart: pos.x - 100, patrolEnd: pos.x + 100,
+                    state: 'patrol', facing: -1, attackCooldown: 0,
+                    anim: { frame: 0, timer: 0 }
+                });
+            });
+        }
+        
+        function createBossLevel1() {
+            boss = {
+                x: 1800, y: 150, width: 48, height: 64,
+                vx: 0, vy: 0, health: 5, maxHealth: 5,
+                phase: 1, state: 'idle', facing: -1,
+                attackCooldown: 0, jumpCooldown: 0,
+                anim: { frame: 0, timer: 0 }
+            };
+        }
+        
+        function showLevel2() {
+            document.getElementById('dialogScreen').classList.add('hidden');
+            document.getElementById('level2Screen').classList.remove('hidden');
+            playSound('yana');
+        }
+        
+        function startLevel2() {
+            document.getElementById('level2Screen').classList.add('hidden');
+            currentLevel = 2;
+            initLevel2();
+            gameRunning = true;
+            requestAnimationFrame(gameUpdate);
+        }
+        
+        function initLevel2() {
+            document.getElementById('level').textContent = 'LEVEL: 2';
+            score += 1000;
+            updateScore();
+            
+            bgLayers = [
+                { color: '#2d001a', speed: 0.1, offset: 0 },
+                { color: '#4a0028', speed: 0.3, offset: 0 },
+                { color: '#ff69b4', speed: 0.5, offset: 0 }
+            ];
+            
+            player.x = 100;
+            player.y = 200;
+            player.vx = 0;
+            player.vy = 0;
+            player.health = 3;
+            updateHearts();
+            
+            generateLevel2();
+            enemies = [];
+            createBossYana();
+        }
+        
+        function generateLevel2() {
+            platforms = [];
+            levelWidth = 1500;
+            
+            for (let x = 0; x < levelWidth; x += TILE_SIZE) {
+                platforms.push({ x: x, y: CANVAS_HEIGHT - TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE, type: 'ground' });
+            }
+            
+            const platformData = [
+                {x: 300, y: 350, w: 2}, {x: 600, y: 280, w: 2},
+                {x: 900, y: 200, w: 3}, {x: 1200, y: 300, w: 2}
+            ];
+            
+            platformData.forEach(p => {
+                for (let i = 0; i < p.w; i++) {
+                    platforms.push({ x: p.x + i * TILE_SIZE, y: p.y, width: TILE_SIZE, height: TILE_SIZE, type: 'pink_brick' });
+                }
+            });
+        }
+        
+        function createBossYana() {
+            boss = {
+                x: 1300, y: 100, width: 80, height: 100,
+                vx: 0, vy: 0, health: 15, maxHealth: 15,
+                phase: 1, state: 'idle', facing: -1,
+                attackCooldown: 0, jumpCooldown: 0,
+                screamTimer: 0, anim: { frame: 0, timer: 0 },
+                isYana: true
+            };
+        }
+        
+        function setupControls() {
+            window.addEventListener('keydown', (e) => {
+                keys[e.code] = true;
+                if (['Space', 'KeyZ', 'KeyK', 'KeyX', 'KeyL'].includes(e.code)) {
+                    e.preventDefault();
+                }
+            });
+            
+            window.addEventListener('keyup', (e) => {
+                keys[e.code] = false;
+            });
+        }
+        
+        function setupJoystick() {
+            const joystickEl = document.getElementById('joystick');
+            const knob = document.getElementById('joystickKnob');
+            let touchId = null;
+            
+            const handleStart = (e) => {
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                touchId = touch.identifier;
+                const rect = joystickEl.getBoundingClientRect();
+                joystick.originX = rect.left + rect.width / 2;
+                joystick.originY = rect.top + rect.height / 2;
+                joystick.active = true;
+                updateJoystick(touch.clientX, touch.clientY);
+            };
+            
+            const handleMove = (e) => {
+                e.preventDefault();
+                for (let touch of e.changedTouches) {
+                    if (touch.identifier === touchId) {
+                        updateJoystick(touch.clientX, touch.clientY);
+                        break;
+                    }
+                }
+            };
+            
+            const handleEnd = (e) => {
+                for (let touch of e.changedTouches) {
+                    if (touch.identifier === touchId) {
+                        joystick.active = false;
+                        joystick.dx = 0;
+                        joystick.dy = 0;
+                        knob.style.transform = `translate(-50%, -50%)`;
+                        touchId = null;
+                        break;
+                    }
+                }
+            };
+            
+            joystickEl.addEventListener('touchstart', handleStart, { passive: false });
+            joystickEl.addEventListener('touchmove', handleMove, { passive: false });
+            joystickEl.addEventListener('touchend', handleEnd);
+            joystickEl.addEventListener('touchcancel', handleEnd);
+            
+            ['jumpBtn', 'attackBtn', 'shootBtn'].forEach(id => {
+                const btn = document.getElementById(id);
+                const key = id.replace('Btn', '');
+                
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    touchButtons[key] = true;
+                }, { passive: false });
+                
+                btn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    touchButtons[key] = false;
+                });
+            });
+        }
+        
+        function updateJoystick(x, y) {
+            const knob = document.getElementById('joystickKnob');
+            const maxDist = 30;
+            
+            let dx = x - joystick.originX;
+            let dy = y - joystick.originY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist > maxDist) {
+                dx = (dx / dist) * maxDist;
+                dy = (dy / dist) * maxDist;
+            }
+            
+            joystick.dx = dx / maxDist;
+            joystick.dy = dy / maxDist;
+            
+            knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        }
+        
+        function gameUpdate(timestamp) {
+            if (!gameRunning) return;
+            
+            lastTime = timestamp;
+            
+            updatePlayer();
+            updateProjectiles();
+            if (currentLevel === 1) updateEnemies();
+            updateBoss();
+            updateParticles();
+            updateCamera();
+            
+            render();
+            
+            requestAnimationFrame(gameUpdate);
+        }
+        
+        function updatePlayer() {
+            let moveX = 0;
+            
+            if (keys['ArrowLeft'] || keys['KeyA'] || joystick.dx < -0.3) {
+                moveX = -1;
+                player.facing = -1;
+            }
+            if (keys['ArrowRight'] || keys['KeyD'] || joystick.dx > 0.3) {
+                moveX = 1;
+                player.facing = 1;
+            }
+            
+            player.vx = moveX * MOVE_SPEED;
+            player.x += player.vx;
+            
+            player.anim.state = moveX !== 0 ? 'run' : 'idle';
+            
+            if ((keys['Space'] || touchButtons.jump) && player.onGround) {
+                player.vy = JUMP_FORCE;
+                player.onGround = false;
+                player.anim.state = 'jump';
+                playSound('jump');
+            }
+            
+            if ((keys['KeyZ'] || keys['KeyK'] || touchButtons.attack) && player.attackTimer <= 0) {
+                player.attacking = true;
+                player.attackTimer = 15;
+                player.combo++;
+                if (player.combo > 3) player.combo = 1;
+                player.comboTimer = 30;
+                playSound('attack');
+                checkPlayerAttack();
+            }
+            
+            if ((keys['KeyX'] || keys['KeyL'] || touchButtons.shoot) && player.shootCooldown <= 0) {
+                shootProjectile();
+                player.shootCooldown = 20;
+            }
+            
+            if (player.attackTimer > 0) player.attackTimer--;
+            if (player.shootCooldown > 0) player.shootCooldown--;
+            if (player.comboTimer > 0) {
+                player.comboTimer--;
+                if (player.comboTimer <= 0) player.combo = 0;
+            }
+            
+            player.vy += GRAVITY;
+            player.y += player.vy;
+            
+            player.onGround = false;
+            
+            for (let platform of platforms) {
+                if (checkCollision(player, platform)) {
+                    if (platform.type === 'spike') {
+                        if (player.invulnerable <= 0) damagePlayer(1);
+                    } else {
+                        if (player.vy > 0 && player.y < platform.y + platform.height/2) {
+                            player.y = platform.y - player.height;
+                            player.vy = 0;
+                            player.onGround = true;
+                        } else if (player.vy < 0 && player.y > platform.y) {
+                            player.y = platform.y + platform.height;
+                            player.vy = 0;
+                        }
+                    }
+                }
+            }
+            
+            if (player.y > CANVAS_HEIGHT) {
+                player.y = 100;
+                player.vy = 0;
+                damagePlayer(1);
+            }
+            
+            if (player.x < 0) player.x = 0;
+            if (player.x > levelWidth - player.width) player.x = levelWidth - player.width;
+            
+            if (player.invulnerable > 0) player.invulnerable--;
+            
+            player.anim.timer++;
+            if (player.anim.timer > 8) {
+                player.anim.timer = 0;
+                player.anim.frame++;
+            }
+        }
+        
+        function shootProjectile() {
+            playSound('shoot');
+            projectiles.push({
+                x: player.x + (player.facing > 0 ? player.width : 0),
+                y: player.y + player.height/2,
+                vx: player.facing * 8,
+                vy: 0,
+                width: 12, height: 6,
+                life: 60, damage: 1
+            });
+        }
+        
+        function updateProjectiles() {
+            projectiles = projectiles.filter(proj => {
+                proj.x += proj.vx;
+                proj.life--;
+                
+                enemies.forEach((enemy, index) => {
+                    if (checkCollision(proj, enemy)) {
+                        enemy.health -= proj.damage;
+                        createParticles(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#ff0000', 3);
+                        playSound('hit');
+                        proj.life = 0;
+                        if (enemy.health <= 0) {
+                            enemies.splice(index, 1);
+                            score += 100;
+                            updateScore();
+                        }
+                    }
+                });
+                
+                if (boss && checkCollision(proj, boss)) {
+                    boss.health--;
+                    createParticles(boss.x + boss.width/2, boss.y + boss.height/2, boss.isYana ? '#ff69b4' : '#ff00ff', 5);
+                    playSound('hit');
+                    proj.life = 0;
+                    
+                    if (boss.health <= 0) {
+                        if (boss.isYana) {
+                            gameRunning = false;
+                            showVictory();
+                        } else {
+                            gameRunning = false;
+                            document.getElementById('dialogScreen').classList.remove('hidden');
+                        }
+                    }
+                }
+                
+                return proj.life > 0;
+            });
+        }
+        
+        function checkPlayerAttack() {
+            const attackRange = 40;
+            const attackX = player.x + (player.facing > 0 ? player.width : -attackRange);
+            
+            enemies.forEach((enemy, index) => {
+                if (checkRectCollision(attackX, player.y, attackRange, player.height, enemy.x, enemy.y, enemy.width, enemy.height)) {
+                    enemy.health -= player.combo === 3 ? 2 : 1;
+                    if (enemy.health <= 0) {
+                        enemies.splice(index, 1);
+                        score += 100;
+                        updateScore();
+                    }
+                }
+            });
+            
+            if (boss && checkRectCollision(attackX, player.y, attackRange, player.height, boss.x, boss.y, boss.width, boss.height)) {
+                boss.health--;
+                if (boss.health <= 0) {
+                    if (boss.isYana) {
+                        gameRunning = false;
+                        showVictory();
+                    } else {
+                        gameRunning = false;
+                        document.getElementById('dialogScreen').classList.remove('hidden');
+                    }
+                }
+            }
+        }
+        
+        function updateEnemies() {
+            enemies.forEach(enemy => {
+                const distToPlayer = Math.abs(player.x - enemy.x);
+                const heightDiff = Math.abs(player.y - enemy.y);
+                
+                if (distToPlayer < 150 && heightDiff < 50) {
+                    enemy.state = 'chase';
+                    const chaseSpeed = ENEMY_SPEED * 1.5;
+                    enemy.vx = player.x > enemy.x ? chaseSpeed : -chaseSpeed;
+                    enemy.facing = enemy.vx > 0 ? 1 : -1;
+                    
+                    if (distToPlayer < 40 && enemy.attackCooldown <= 0) {
+                        enemy.attackCooldown = 60;
+                        if (player.invulnerable <= 0) damagePlayer(1);
+                    }
+                } else {
+                    enemy.state = 'patrol';
+                    enemy.x += enemy.vx;
+                    if (enemy.x <= enemy.patrolStart || enemy.x >= enemy.patrolEnd) {
+                        enemy.vx *= -1;
+                        enemy.facing = enemy.vx > 0 ? 1 : -1;
+                    }
+                }
+                
+                if (enemy.attackCooldown > 0) enemy.attackCooldown--;
+                
+                enemy.vy += GRAVITY;
+                enemy.y += enemy.vy;
+                
+                platforms.forEach(platform => {
+                    if (checkCollision(enemy, platform) && platform.type !== 'spike') {
+                        if (enemy.vy > 0) {
+                            enemy.y = platform.y - enemy.height;
+                            enemy.vy = 0;
+                        }
+                    }
+                });
+            });
+        }
+        
+        function updateBoss() {
+            if (!boss) return;
+            
+            const distToPlayer = player.x - boss.x;
+            const absDist = Math.abs(distToPlayer);
+            
+            if (boss.isYana) {
+                // Yana AI
+                boss.screamTimer++;
+                if (boss.screamTimer > 180) {
+                    boss.screamTimer = 0;
+                    playSound('yana');
+                }
+                
+                if (boss.health <= 7 && boss.phase === 1) {
+                    boss.phase = 2;
+                }
+                
+                const speed = boss.phase === 2 ? 2.5 : 1.5;
+                if (absDist > 80) {
+                    boss.vx = distToPlayer > 0 ? speed : -speed;
+                    boss.facing = distToPlayer > 0 ? 1 : -1;
+                } else {
+                    boss.vx = 0;
+                }
+                
+                if (absDist < 100 && boss.jumpCooldown <= 0) {
+                    boss.vy = -12;
+                    boss.jumpCooldown = 90;
+                }
+            } else {
+                // Level 1 boss AI
+                if (boss.health <= boss.maxHealth / 2 && boss.phase === 1) {
+                    boss.phase = 2;
+                }
+                
+                const speed = boss.phase === 2 ? 1.5 : 1;
+                if (absDist > 100) {
+                    boss.vx = distToPlayer > 0 ? speed : -speed;
+                    boss.facing = distToPlayer > 0 ? 1 : -1;
+                } else {
+                    boss.vx = 0;
+                }
+                
+                if (boss.phase === 2 && boss.jumpCooldown <= 0 && absDist < 150) {
+                    boss.vy = -8;
+                    boss.jumpCooldown = 120;
+                }
+            }
+            
+            if (boss.jumpCooldown > 0) boss.jumpCooldown--;
+            
+            if (absDist < 60 && boss.attackCooldown <= 0) {
+                boss.attackCooldown = 45;
+                if (player.invulnerable <= 0) {
+                    damagePlayer(boss.isYana ? 2 : (boss.phase === 2 ? 2 : 1));
+                }
+            }
+            
+            if (boss.attackCooldown > 0) boss.attackCooldown--;
+            
+            boss.vy += GRAVITY;
+            boss.y += boss.vy;
+            
+            platforms.forEach(platform => {
+                if (checkCollision(boss, platform) && platform.type !== 'spike') {
+                    if (boss.vy > 0) {
+                        boss.y = platform.y - boss.height;
+                        boss.vy = 0;
+                    }
+                }
+            });
+        }
+        
+        function showVictory() {
+            const container = document.getElementById('gameContainer');
+            const victoryDiv = document.createElement('div');
+            victoryDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:300;color:#ffd700;text-align:center;padding:20px;';
+            victoryDiv.innerHTML = `
+                <h1 style="font-size:36px;margin-bottom:20px;text-shadow:4px 4px 0 #8b0000;">ПОБЕДА!</h1>
+                <p style="font-size:20px;color:#fff;margin:10px;">Ты победил Яну!</p>
+                <p style="font-size:24px;color:#00ff00;margin:20px;">Теперь можно и отдохнуть...</p>
+                <button onclick="location.reload()" style="padding:15px 30px;font-size:20px;background:#8b0000;color:#ffd700;border:3px solid #ffd700;margin-top:20px;font-family:inherit;">ИГРАТЬ СНОВА</button>
+            `;
+            container.appendChild(victoryDiv);
+        }
+        
+        function damagePlayer(amount) {
+            player.health -= amount;
+            player.invulnerable = 60;
+            playSound('hit');
+            updateHearts();
+            player.vx = -player.facing * 5;
+            player.vy = -5;
+            
+            if (player.health <= 0) {
+                gameRunning = false;
+                document.getElementById('startScreen').style.display = 'flex';
+                document.getElementById('consultationText').classList.remove('hidden');
+            }
+        }
+        
+        function updateHearts() {
+            const container = document.getElementById('hearts');
+            container.innerHTML = '';
+            for (let i = 0; i < player.maxHealth; i++) {
+                const heart = document.createElement('div');
+                heart.className = 'heart' + (i >= player.health ? ' lost' : '');
+                container.appendChild(heart);
+            }
+        }
+        
+        function updateScore() {
+            document.getElementById('score').textContent = 'SCORE: ' + score;
+        }
+        
+        function createParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    life: 30, color: color,
+                    size: Math.random() * 4 + 2
+                });
+            }
+        }
+        
+        function updateParticles() {
+            particles = particles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2;
+                p.life--;
+                return p.life > 0;
+            });
+        }
+        
+        function updateCamera() {
+            const targetX = player.x - CANVAS_WIDTH / 2;
+            camera.x += (targetX - camera.x) * 0.1;
+            if (camera.x < 0) camera.x = 0;
+            if (camera.x > levelWidth - CANVAS_WIDTH) camera.x = levelWidth - CANVAS_WIDTH;
+            
+            bgLayers.forEach(layer => {
+                layer.offset = -camera.x * layer.speed;
+            });
+        }
+        
+        function checkCollision(a, b) {
+            return a.x < b.x + b.width && a.x + a.width > b.x &&
+                   a.y < b.y + b.height && a.y + a.height > b.y;
+        }
+        
+        function checkRectCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
+            return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+        }
+        
+        function render() {
+            ctx.fillStyle = bgLayers[0].color;
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            
+            renderBackgrounds();
+            
+            ctx.save();
+            ctx.translate(-camera.x, -camera.y);
+            
+            renderPlatforms();
+            if (currentLevel === 1) renderEnemies();
+            if (boss) renderBoss();
+            renderPlayer();
+            renderProjectiles();
+            renderParticles();
+            
+            ctx.restore();
+            
+            if (player.combo > 1) {
+                ctx.fillStyle = '#ff0';
+                ctx.font = 'bold 20px Courier New';
+                ctx.fillText(player.combo + ' HIT COMBO!', CANVAS_WIDTH/2 - 60, 100);
+            }
+        }
+        
+        function renderBackgrounds() {
+            ctx.fillStyle = bgLayers[1].color;
+            ctx.beginPath();
+            for (let x = 0; x <= CANVAS_WIDTH; x += 50) {
+                const mx = x + bgLayers[1].offset % 100;
+                ctx.lineTo(mx, CANVAS_HEIGHT - 100 - Math.sin(x * 0.01) * 50);
+            }
+            ctx.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT);
+            ctx.lineTo(0, CANVAS_HEIGHT);
+            ctx.fill();
+            
+            ctx.fillStyle = bgLayers[2].color;
+            const px = bgLayers[2].offset % CANVAS_WIDTH;
+            for (let i = 0; i < 5; i++) {
+                const tx = px + i * 200;
+                if (tx > -100 && tx < CANVAS_WIDTH + 100) {
+                    ctx.fillRect(tx, CANVAS_HEIGHT - 200, 60, 200);
+                    ctx.beginPath();
+                    ctx.arc(tx + 30, CANVAS_HEIGHT - 200, 30, Math.PI, 0);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        function renderPlatforms() {
+            platforms.forEach(p => {
+                if (p.type === 'ground') {
+                    ctx.fillStyle = currentLevel === 2 ? '#ff69b4' : '#c2b280';
+                    ctx.fillRect(p.x, p.y, p.width, p.height);
+                    ctx.fillStyle = currentLevel === 2 ? '#ffb6c1' : '#d4c4a0';
+                    ctx.fillRect(p.x, p.y, p.width, 4);
+                } else if (p.type === 'brick' || p.type === 'pink_brick') {
+                    ctx.fillStyle = p.type === 'pink_brick' ? '#ff1493' : '#8b4513';
+                    ctx.fillRect(p.x, p.y, p.width, p.height);
+                    ctx.fillStyle = p.type === 'pink_brick' ? '#ff69b4' : '#a0522d';
+                    ctx.fillRect(p.x + 2, p.y + 2, p.width - 4, p.height - 4);
+                } else if (p.type === 'spike') {
+                    ctx.fillStyle = '#666';
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y + p.height);
+                    ctx.lineTo(p.x + p.width/2, p.y);
+                    ctx.lineTo(p.x + p.width, p.y + p.height);
+                    ctx.fill();
+                }
+            });
+        }
+        
+        function renderPlayer() {
+            ctx.save();
+            ctx.translate(player.x + player.width/2, player.y + player.height/2);
+            
+            if (player.invulnerable > 0 && Math.floor(Date.now() / 50) % 2 === 0) {
+                ctx.globalAlpha = 0.5;
+            }
+            
+            if (player.facing < 0) ctx.scale(-1, 1);
+            
+            const frame = player.anim.frame % 4;
+            
+            ctx.fillStyle = '#4169e1';
+            ctx.fillRect(-8, -15, 16, 20);
+            ctx.fillStyle = '#ffd700';
+            ctx.fillRect(-8, 0, 16, 4);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(-6, -25, 12, 12);
+            ctx.fillStyle = '#ffd700';
+            ctx.fillRect(-6, -25, 12, 3);
+            ctx.fillStyle = '#fdbcb4';
+            ctx.fillRect(-5, -20, 10, 8);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(player.facing > 0 ? 1 : -3, -18, 2, 2);
+            
+            ctx.fillStyle = '#fff';
+            if (player.anim.state === 'run') {
+                if (frame % 2 === 0) {
+                    ctx.fillRect(-6, 5, 5, 12);
+                    ctx.fillRect(1, 5, 5, 12);
+                } else {
+                    ctx.fillRect(-4, 5, 5, 10);
+                    ctx.fillRect(-1, 8, 5, 9);
+                }
+            } else {
+                ctx.fillRect(-6, 5, 5, 12);
+                ctx.fillRect(1, 5, 5, 12);
+            }
+            
+            ctx.fillStyle = '#fdbcb4';
+            if (player.attacking) {
+                ctx.fillRect(5, -10, 12, 4);
+                ctx.fillStyle = '#c0c0c0';
+                ctx.fillRect(15, -12, 4, 20);
+                ctx.fillStyle = '#ffd700';
+                ctx.fillRect(13, -8, 6, 4);
+            } else {
+                ctx.fillRect(-10, -8, 6, 4);
+                ctx.fillRect(4, -8, 6, 4);
+            }
+            
+            ctx.restore();
+        }
+        
+        function renderEnemies() {
+            enemies.forEach(enemy => {
+                ctx.save();
+                ctx.translate(enemy.x + enemy.width/2, enemy.y + enemy.height/2);
+                if (enemy.facing < 0) ctx.scale(-1, 1);
+                
+                ctx.fillStyle = '#2f4f4f';
+                ctx.fillRect(-8, -12, 16, 18);
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(-6, -22, 12, 12);
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(2, -18, 3, 3);
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(-6, 6, 5, 10);
+                ctx.fillRect(1, 6, 5, 10);
+                
+                if (enemy.state === 'chase') {
+                    ctx.fillStyle = '#666';
+                    ctx.fillRect(5, -5, 10, 3);
+                }
+                
+                ctx.restore();
+            });
+        }
+        
+        function renderBoss() {
+            ctx.save();
+            ctx.translate(boss.x + boss.width/2, boss.y + boss.height/2);
+            if (boss.facing < 0) ctx.scale(-1, 1);
+            
+            if (boss.isYana) {
+                // Yana - big pink boss
+                ctx.fillStyle = boss.phase === 2 ? '#ff1493' : '#ff69b4';
+                ctx.fillRect(-40, -50, 80, 100);
+                
+                // Dress
+                ctx.fillStyle = '#ffb6c1';
+                ctx.beginPath();
+                ctx.moveTo(-40, 50);
+                ctx.lineTo(0, -30);
+                ctx.lineTo(40, 50);
+                ctx.fill();
+                
+                // Head
+                ctx.fillStyle = '#fdbcb4';
+                ctx.fillRect(-25, -70, 50, 40);
+                
+                // Hair
+                ctx.fillStyle = '#8b4513';
+                ctx.fillRect(-30, -75, 60, 15);
+                ctx.fillRect(-35, -60, 10, 40);
+                ctx.fillRect(25, -60, 10, 40);
+                
+                // Angry eyes
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.arc(-10, -55, 5, 0, Math.PI * 2);
+                ctx.arc(10, -55, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Mouth (screaming)
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.ellipse(0, -40, 10, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Rolling pin weapon
+                ctx.fillStyle = '#8b4513';
+                ctx.fillRect(35, -20, 40, 8);
+                ctx.fillStyle = '#d2691e';
+                ctx.fillRect(70, -25, 8, 18);
+                
+                // Speech bubble
+                if (boss.screamTimer < 60) {
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(20, -100, 80, 30);
+                    ctx.fillStyle = '#000';
+                    ctx.font = '12px Arial';
+                    ctx.fillText('ПАША!!!', 35, -80);
+                }
+            } else {
+                // Level 1 boss
+                ctx.fillStyle = boss.phase === 2 ? '#8b0000' : '#4a0080';
+                ctx.fillRect(-20, -25, 40, 50);
+                ctx.fillStyle = '#ffd700';
+                ctx.fillRect(-15, -20, 30, 5);
+                ctx.fillRect(-15, 10, 30, 5);
+                ctx.fillStyle = '#2a0040';
+                ctx.fillRect(-15, -40, 30, 20);
+                ctx.fillStyle = boss.phase === 2 ? '#ff0000' : '#00ff00';
+                ctx.beginPath();
+                ctx.arc(-5, -32, 4, 0, Math.PI * 2);
+                ctx.arc(5, -32, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#c0c0c0';
+                ctx.fillRect(15, -20, 8, 50);
+            }
+            
+            // Health bar
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-30, -90, 60, 8);
+            ctx.fillStyle = '#f00';
+            ctx.fillRect(-28, -88, 56 * (boss.health / boss.maxHealth), 4);
+            
+            ctx.restore();
+        }
+        
+        function renderProjectiles() {
+            ctx.fillStyle = '#ffff00';
+            projectiles.forEach(proj => {
+                ctx.fillRect(proj.x, proj.y, proj.width, proj.height);
+                ctx.fillStyle = '#ffaa00';
+                ctx.fillRect(proj.x - proj.vx * 0.5, proj.y, proj.width * 0.5, proj.height);
+                ctx.fillStyle = '#ffff00';
+            });
+        }
+        
+        function renderParticles() {
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 30;
+                ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+            });
+            ctx.globalAlpha = 1;
+        }
+    </script>
+</body>
+</html>
